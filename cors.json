@@ -1,0 +1,28 @@
+[
+  {
+    "origin": ["*"],
+    "method": ["GET", "HEAD", "PUT", "POST", "DELETE", "OPTIONS"],
+    "maxAgeSeconds": 3600,
+    "responseHeader": [
+      "Content-Type",
+      "Access-Control-Allow-Origin",
+      "Access-Control-Allow-Methods",
+      "Access-Control-Allow-Headers",
+      "Access-Control-Max-Age",
+      "Access-Control-Allow-Credentials",
+      "Authorization",
+      "Content-Length",
+      "User-Agent",
+      "x-goog-resumable",
+      "Content-Disposition",
+      "Accept",
+      "Origin",
+      "Cache-Control",
+      "If-Match",
+      "If-None-Match",
+      "If-Modified-Since",
+      "If-Unmodified-Since",
+      "Range"
+    ]
+  }
+]

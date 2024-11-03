@@ -1,0 +1,35 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuth() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // Patients collection rules
+    match /patients/{patientId} {
+      allow read: if isAuth() && isOwner(resource.data.dentistId);
+      allow create: if isAuth() && isOwner(request.resource.data.dentistId);
+      allow update, delete: if isAuth() && isOwner(resource.data.dentistId);
+    }
+    
+    // Files collection rules
+    match /files/{fileId} {
+      allow read: if isAuth() && isOwner(resource.data.dentistId);
+      allow create: if isAuth() && isOwner(request.resource.data.dentistId);
+      allow update, delete: if isAuth() && isOwner(resource.data.dentistId);
+    }
+    
+    // User profiles collection
+    match /users/{userId} {
+      allow read: if isAuth() && isOwner(userId);
+      allow write: if isAuth() && isOwner(userId);
+    }
+  }
+}

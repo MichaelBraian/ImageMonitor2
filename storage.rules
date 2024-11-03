@@ -1,0 +1,62 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Basic authentication check
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if user is the dentist who owns the patient
+    function isDentistForPatient(patientId) {
+      return isAuthenticated() &&
+        firestore.exists(/databases/(default)/documents/patients/$(patientId)) &&
+        firestore.get(/databases/(default)/documents/patients/$(patientId)).data.dentistId == request.auth.uid;
+    }
+
+    // Validate file metadata
+    function hasValidMetadata() {
+      return request.resource.metadata.dentistId == request.auth.uid &&
+             request.resource.metadata.patientId is string &&
+             request.resource.metadata.fileType in ['2D', '3D'] &&
+             request.resource.metadata.group is string;
+    }
+
+    // Allow CORS preflight requests
+    match /{allPaths=**} {
+      allow options: if request.headers.origin != null;
+    }
+
+    // Match all files in patients folder and subfolders
+    match /patients/{patientId}/{allPaths=**} {
+      // Allow read if user is authenticated and owns the patient
+      allow read: if isDentistForPatient(patientId);
+      
+      // Allow create if user is authenticated and owns the patient
+      allow create: if isDentistForPatient(patientId) &&
+        request.resource.size < 100 * 1024 * 1024 && // 100MB max file size
+        hasValidMetadata();
+      
+      // Allow update if user owns the patient
+      allow update: if isDentistForPatient(patientId) &&
+        request.resource.size < 100 * 1024 * 1024;
+      
+      // Allow delete if user owns the patient
+      allow delete: if isDentistForPatient(patientId);
+    }
+
+    // User profile images
+    match /users/{userId}/profile/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId &&
+        request.resource.size < 5 * 1024 * 1024 && // 5MB max for profile images
+        request.resource.contentType.matches('image/.*');
+    }
+
+    // Temporary edited images
+    match /temp/{userId}/{fileName} {
+      allow read, write: if request.auth.uid == userId;
+      allow delete: if request.auth.uid == userId;
+    }
+  }
+}

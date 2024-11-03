@@ -1,0 +1,14 @@
+# Sensitive files
+service-account.json
+.env
+.env.local
+.env.development
+.env.production
+
+# Build files
+node_modules
+dist
+
+# Example files should be tracked
+!service-account.example.json
+!.env.example
