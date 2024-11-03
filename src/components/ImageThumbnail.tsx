@@ -46,11 +46,11 @@ const ImageThumbnail: React.FC<ImageThumbnailProps> = ({ url, alt, className = '
   }
 
   return (
-    <div className="relative w-full h-full bg-gray-100 dark:bg-gray-700">
+    <div className="relative w-full h-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
       <img
         src={imageUrl}
         alt={alt}
-        className={`w-full h-full object-cover ${className}`}
+        className={`max-h-full max-w-full object-contain ${className}`}
         loading="lazy"
         onError={retryLoading}
       />

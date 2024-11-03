@@ -24,20 +24,16 @@ async function generateThumbnail(file: File): Promise<Blob> {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      const MAX_SIZE = 300;
+      const MAX_HEIGHT = 300; // Maximum height for thumbnails
+      
+      // Calculate new dimensions while preserving aspect ratio
       let width = img.width;
       let height = img.height;
       
-      if (width > height) {
-        if (width > MAX_SIZE) {
-          height *= MAX_SIZE / width;
-          width = MAX_SIZE;
-        }
-      } else {
-        if (height > MAX_SIZE) {
-          width *= MAX_SIZE / height;
-          height = MAX_SIZE;
-        }
+      // Scale down to max height while maintaining aspect ratio
+      if (height > MAX_HEIGHT) {
+        width = (MAX_HEIGHT / height) * width;
+        height = MAX_HEIGHT;
       }
       
       canvas.width = width;
