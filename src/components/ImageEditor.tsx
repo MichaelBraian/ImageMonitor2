@@ -45,6 +45,8 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl: initialImageUrl, on
       }
 
       await onSave(croppedImage);
+      toast.success('Image saved successfully');
+      onClose();
     } catch (error) {
       console.error('Error saving image:', error);
       toast.error('Failed to save image. Please try again.');
@@ -135,6 +137,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl: initialImageUrl, on
             <button
               onClick={onClose}
               className="p-2 text-gray-400 hover:text-gray-200 rounded-lg"
+              disabled={saving}
             >
               <X className="w-6 h-6" />
             </button>

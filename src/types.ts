@@ -6,6 +6,7 @@ export interface Patient {
   name: string;
   dentistId: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface DentalFile {

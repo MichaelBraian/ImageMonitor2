@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, ArrowLeft, Box, Loader2, AlertTriangle } from 'lucide-react';
+import { Upload, ArrowLeft, Box, Loader2, AlertTriangle, Check } from 'lucide-react';
 import { useFiles } from '../context/FileContext';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { doc, getDoc } from 'firebase/firestore';
@@ -8,18 +8,41 @@ import type { DentalFile, Patient } from '../types';
 import FilePreview from './FilePreview';
 import ImageThumbnail from './ImageThumbnail';
 import toast from 'react-hot-toast';
+import ImageEditor from './ImageEditor';
+import { ref, getDownloadURL } from 'firebase/storage';
+import { storage } from '../lib/firebase';
 
 interface PatientDetailsProps {
   patient: Patient;
   onBack: () => void;
 }
 
-const FileCard: React.FC<{ file: DentalFile; onClick: () => void }> = ({ file, onClick }) => {
+interface FileCardProps {
+  file: DentalFile;
+  onClick: () => void;
+  isSelected: boolean;
+  onSelect: (e: React.MouseEvent) => void;
+}
+
+const FileCard: React.FC<FileCardProps> = ({ file, onClick, isSelected, onSelect }) => {
   return (
     <div
-      className="border dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-white dark:bg-gray-800 cursor-pointer"
+      className="relative border dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-white dark:bg-gray-800 cursor-pointer"
       onClick={onClick}
     >
+      <div 
+        className="absolute top-2 left-2 z-10"
+        onClick={(e) => onSelect(e)}
+      >
+        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center
+          ${isSelected 
+            ? 'bg-blue-500 border-blue-500' 
+            : 'border-gray-300 dark:border-gray-600'}`}
+        >
+          {isSelected && <Check className="w-4 h-4 text-white" />}
+        </div>
+      </div>
+
       {file.type === '2D' ? (
         <div className="relative group h-48">
           <ImageThumbnail 
@@ -46,14 +69,16 @@ const FileCard: React.FC<{ file: DentalFile; onClick: () => void }> = ({ file, o
 };
 
 const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
-  const { uploadFile, getPatientFiles } = useFiles();
+  const { uploadFile, getPatientFiles, updateFileGroup, deleteFile } = useFiles();
   const { permissions, loading: accessLoading, verifyAccess } = useAccessControl(patient.id);
   const [files, setFiles] = useState<DentalFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string>('All');
   const [availableGroups, setAvailableGroups] = useState<string[]>(['Before', 'After', 'Unsorted']);
-  const [selectedFile, setSelectedFile] = useState<DentalFile | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [currentFileId, setCurrentFileId] = useState<string | null>(null);
 
   const allowedFileTypes = '.jpg,.jpeg,.png,.stl,.ply';
 
@@ -104,7 +129,8 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
       Array.from(selectedFiles).forEach(file => {
         const fileExtension = file.name.split('.').pop()?.toLowerCase();
         const fileType = (fileExtension === 'stl' || fileExtension === 'ply') ? '3D' : '2D';
-        uploadPromises.push(uploadFile(file, patient.id, fileType, selectedGroup === 'All' ? 'Unsorted' : selectedGroup));
+        const targetGroup = selectedGroup === 'All' ? 'Unsorted' : selectedGroup;
+        uploadPromises.push(uploadFile(file, patient.id, fileType, targetGroup));
       });
 
       const uploadedFiles = await Promise.all(uploadPromises);
@@ -129,15 +155,116 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
         f.id === fileId ? { ...f, group: newGroup } : f
       ));
       toast.success('File category updated');
+      await loadFiles();
     } catch (error) {
       console.error('Error updating file group:', error);
       toast.error('Failed to update file category');
     }
   };
 
+  const handleBulkCategoryUpdate = async (newGroup: string) => {
+    if (selectedFiles.size === 0) {
+      toast.error('Please select files to update');
+      return;
+    }
+
+    try {
+      const updatePromises = Array.from(selectedFiles).map(fileId =>
+        updateFileGroup(fileId, newGroup)
+      );
+
+      await Promise.all(updatePromises);
+      await loadFiles(); // Reload files to get updated data
+      setSelectedFiles(new Set()); // Clear selection
+      toast.success(`Updated ${selectedFiles.size} files to category "${newGroup}"`);
+    } catch (error) {
+      console.error('Error updating files:', error);
+      toast.error('Failed to update some files');
+    }
+  };
+
+  const toggleFileSelection = (e: React.MouseEvent, fileId: string) => {
+    e.stopPropagation(); // Prevent opening the file preview
+    setSelectedFiles(prev => {
+      const newSelection = new Set(prev);
+      if (newSelection.has(fileId)) {
+        newSelection.delete(fileId);
+      } else {
+        newSelection.add(fileId);
+      }
+      return newSelection;
+    });
+  };
+
   const filteredFiles = files.filter(file => 
     selectedGroup === 'All' ? true : file.group === selectedGroup
   );
+
+  const handleImageClick = async (file: DentalFile) => {
+    if (file.type === '2D') {
+      setSelectedImageUrl(file.url);
+      setCurrentFileId(file.id);
+    } else {
+      handleDownload(file);
+    }
+  };
+
+  const handleDownload = async (file: DentalFile) => {
+    try {
+      let downloadUrl = file.url;
+      if (file.url.includes('firebasestorage.googleapis.com')) {
+        const path = decodeURIComponent(file.url.split('/o/')[1]?.split('?')[0]);
+        if (path) {
+          const storageRef = ref(storage, path);
+          downloadUrl = await getDownloadURL(storageRef);
+        }
+      }
+
+      const response = await fetch(downloadUrl);
+      if (!response.ok) throw new Error('Download failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Download started');
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download file');
+    }
+  };
+
+  const handleSaveEdit = async (editedImageUrl: string) => {
+    if (!currentFileId) return;
+    
+    try {
+      const file = files.find(f => f.id === currentFileId);
+      if (!file) return;
+
+      const base64Response = await fetch(editedImageUrl);
+      const blob = await base64Response.blob();
+      const editedFile = new File([blob], file.name, { type: 'image/jpeg' });
+
+      await deleteFile(file.id, file.path);
+
+      await uploadFile(editedFile, patient.id, '2D', file.group);
+      
+      await loadFiles();
+      
+      toast.success('Image edited and saved successfully');
+    } catch (error) {
+      console.error('Error saving edited image:', error);
+      toast.error('Failed to save edited image');
+    } finally {
+      setSelectedImageUrl(null);
+      setCurrentFileId(null);
+    }
+  };
 
   if (accessLoading || isLoading) {
     return (
@@ -181,27 +308,41 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
         
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{patient.name}'s Records</h2>
-          <label className={`inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-            {uploading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Uploading...
-              </>
-            ) : (
-              <>
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Files
-              </>
+          <div className="flex items-center space-x-4">
+            {selectedFiles.size > 0 && (
+              <select
+                onChange={(e) => handleBulkCategoryUpdate(e.target.value)}
+                className="rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                defaultValue=""
+              >
+                <option value="" disabled>Move to category...</option>
+                {availableGroups.map(group => (
+                  <option key={group} value={group}>{group}</option>
+                ))}
+              </select>
             )}
-            <input
-              type="file"
-              className="hidden"
-              multiple
-              accept={allowedFileTypes}
-              onChange={handleFileUpload}
-              disabled={uploading}
-            />
-          </label>
+            <label className={`inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+              {uploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Files
+                </>
+              )}
+              <input
+                type="file"
+                className="hidden"
+                multiple
+                accept={allowedFileTypes}
+                onChange={handleFileUpload}
+                disabled={uploading}
+              />
+            </label>
+          </div>
         </div>
 
         <div className="flex items-center space-x-4 mb-6">
@@ -215,6 +356,15 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
               <option key={group} value={group}>{group}</option>
             ))}
           </select>
+          
+          {selectedFiles.size > 0 && (
+            <button
+              onClick={() => setSelectedFiles(new Set())}
+              className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            >
+              Clear selection ({selectedFiles.size})
+            </button>
+          )}
         </div>
       </div>
 
@@ -231,19 +381,23 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
               <FileCard
                 key={file.id}
                 file={file}
-                onClick={() => setSelectedFile(file)}
+                onClick={() => handleImageClick(file)}
+                isSelected={selectedFiles.has(file.id)}
+                onSelect={(e) => toggleFileSelection(e, file.id)}
               />
             ))}
           </div>
         )}
       </div>
 
-      {selectedFile && (
-        <FilePreview
-          file={selectedFile}
-          onClose={() => setSelectedFile(null)}
-          onGroupChange={handleGroupChange}
-          availableGroups={availableGroups}
+      {selectedImageUrl && (
+        <ImageEditor
+          imageUrl={selectedImageUrl}
+          onSave={handleSaveEdit}
+          onClose={() => {
+            setSelectedImageUrl(null);
+            setCurrentFileId(null);
+          }}
         />
       )}
     </div>

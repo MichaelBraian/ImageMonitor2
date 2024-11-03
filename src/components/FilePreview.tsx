@@ -23,7 +23,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const { image, loading, error, retryLoading, imageUrl } = useImageLoader(file.url);
+  const { imageUrl, loading, error, retryLoading } = useImageLoader(file.url);
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -156,6 +156,29 @@ const FilePreview: React.FC<FilePreviewProps> = ({
     }
   };
 
+  const formatFileName = (name: string) => {
+    // Split the filename into parts
+    const parts = name.split('_');
+    if (parts.length >= 3) {
+      // Format: PatientName_Category_Year_UniqueID
+      return (
+        <div className="space-y-1">
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            Patient: {parts[0]}
+          </div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            Category: {parts[1]}
+          </div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            Year: {parts[2]}
+          </div>
+        </div>
+      );
+    }
+    // Fallback for files that don't match the new naming convention
+    return <div className="text-sm text-gray-500 dark:text-gray-400">{name}</div>;
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full">
@@ -170,6 +193,9 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                 <option key={group} value={group}>{group}</option>
               ))}
             </select>
+          </div>
+          <div className="flex-1 mx-4">
+            {formatFileName(file.name)}
           </div>
           <div className="flex items-center space-x-2">
             {file.type === '2D' && !saving && (

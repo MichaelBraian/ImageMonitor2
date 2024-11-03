@@ -1,6 +1,6 @@
 import { createContext, useContext, ReactNode } from "react";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { collection, addDoc, query, where, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { collection, addDoc, query, where, getDocs, deleteDoc, doc, updateDoc, getDoc } from "firebase/firestore";
 import { storage, db } from "../lib/firebase";
 import { useAuth } from "./AuthContext";
 import { v4 as uuidv4 } from "uuid";
@@ -67,6 +67,16 @@ async function generateThumbnail(file: File): Promise<Blob> {
   });
 }
 
+const generateFileName = (file: File, patientName: string, group: string): string => {
+  const year = new Date().getFullYear();
+  const originalExtension = file.name.split('.').pop() || '';
+  const sanitizedPatientName = patientName.replace(/[^a-zA-Z0-9]/g, '');
+  const sanitizedGroup = group.replace(/[^a-zA-Z0-9]/g, '');
+  const uniqueId = uuidv4().slice(0, 8); // Add a short unique ID to prevent naming conflicts
+  
+  return `${sanitizedPatientName}_${sanitizedGroup}_${year}_${uniqueId}.${originalExtension}`;
+};
+
 export function FileProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
 
@@ -84,21 +94,27 @@ export function FileProvider({ children }: { children: ReactNode }) {
         throw new Error('User must be authenticated to upload files');
       }
 
+      // Get patient name from Firestore
+      const patientDoc = await getDoc(doc(db, 'patients', patientId));
+      if (!patientDoc.exists()) {
+        throw new Error('Patient not found');
+      }
+      const patientName = patientDoc.data().name;
+
+      // Generate new filename with patient name and category
+      const newFileName = generateFileName(file, patientName, group);
       const fileId = uuidv4();
-      const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const fileName = `${fileId}-${sanitizedFileName}`;
-      const contentType = getContentType(file, type);
       const folder = type === '2D' ? 'images' : 'models';
-      const storagePath = `patients/${patientId}/${folder}/${fileName}`;
+      const storagePath = `patients/${patientId}/${folder}/${newFileName}`;
       
       // Only generate thumbnail for 2D images
       let thumbnailUrl: string | undefined;
       if (type === '2D') {
         try {
           const thumbnail = await generateThumbnail(file);
-          const thumbnailPath = `patients/${patientId}/${folder}/thumbnails/${fileName}`;
+          const thumbnailPath = `patients/${patientId}/${folder}/thumbnails/${newFileName}`;
           const thumbnailRef = ref(storage, thumbnailPath);
-          const thumbnailMetadata = {
+          await uploadBytes(thumbnailRef, thumbnail, {
             contentType: 'image/jpeg',
             cacheControl: 'public, max-age=31536000',
             customMetadata: {
@@ -106,10 +122,10 @@ export function FileProvider({ children }: { children: ReactNode }) {
               patientId: patientId,
               fileType: type,
               group: group,
-              originalName: file.name
+              originalName: file.name,
+              patientName: patientName
             }
-          };
-          await uploadBytes(thumbnailRef, thumbnail, thumbnailMetadata);
+          });
           thumbnailUrl = await getDownloadURL(thumbnailRef);
         } catch (error) {
           console.error('Failed to generate thumbnail:', error);
@@ -118,15 +134,16 @@ export function FileProvider({ children }: { children: ReactNode }) {
 
       const storageRef = ref(storage, storagePath);
       const metadata = {
-        contentType,
+        contentType: getContentType(file, type),
         cacheControl: 'public, max-age=31536000',
         customMetadata: {
           dentistId: user.uid,
           patientId: patientId,
           fileType: type,
-          format: type === '3D' ? file.name.split('.').pop()?.toUpperCase() : '2D',
+          format: type === '3D' ? (file.name.split('.').pop()?.toUpperCase() || 'STL') : '2D',
           group: group,
-          originalName: file.name
+          originalName: file.name,
+          patientName: patientName
         }
       };
 
@@ -134,9 +151,9 @@ export function FileProvider({ children }: { children: ReactNode }) {
       const url = await getDownloadURL(uploadResult.ref);
 
       // Create the file document with conditional thumbnailUrl
-      const fileData: Partial<DentalFile> = {
+      const fileData: DentalFile = {
         id: fileId,
-        name: file.name,
+        name: newFileName,
         url: url,
         type: type,
         format: type === '3D' ? file.name.split('.').pop()?.toUpperCase() || 'STL' : '2D',
@@ -144,7 +161,8 @@ export function FileProvider({ children }: { children: ReactNode }) {
         patientId: patientId,
         dentistId: user.uid,
         path: storagePath,
-        uploadedAt: new Date().toISOString()
+        uploadedAt: new Date().toISOString(),
+        thumbnailUrl
       };
 
       // Only add thumbnailUrl if it exists (for 2D images)
@@ -155,7 +173,7 @@ export function FileProvider({ children }: { children: ReactNode }) {
       const docRef = await addDoc(collection(db, 'files'), fileData);
       
       toast.success('File uploaded successfully');
-      return { ...fileData, id: docRef.id } as DentalFile;
+      return { ...fileData, id: docRef.id };
     } catch (error: any) {
       console.error('Upload error:', error);
       
@@ -200,11 +218,90 @@ export function FileProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      // Get the file document
+      const fileDoc = await getDoc(doc(db, 'files', fileId));
+      if (!fileDoc.exists()) {
+        throw new Error('File not found');
+      }
+      const fileData = fileDoc.data() as DentalFile;
+
+      // Get patient name
+      const patientDoc = await getDoc(doc(db, 'patients', fileData.patientId));
+      if (!patientDoc.exists()) {
+        throw new Error('Patient not found');
+      }
+      const patientName = patientDoc.data().name;
+
+      // Generate new filename
+      const originalExtension = fileData.name.split('.').pop() || '';
+      const newFileName = generateFileName(
+        new File([], fileData.name), // Dummy file object for the generateFileName function
+        patientName,
+        newGroup
+      );
+
+      // Generate new paths
+      const folder = fileData.type === '2D' ? 'images' : 'models';
+      const newStoragePath = `patients/${fileData.patientId}/${folder}/${newFileName}`;
+
+      // Get old and new storage references
+      const oldStorageRef = ref(storage, fileData.path);
+      const newStorageRef = ref(storage, newStoragePath);
+
+      // Copy the file to new location
+      const oldFileBlob = await (await fetch(fileData.url)).blob();
+      await uploadBytes(newStorageRef, oldFileBlob, {
+        contentType: oldFileBlob.type,
+        customMetadata: {
+          ...fileData,
+          group: newGroup,
+          updatedAt: new Date().toISOString()
+        }
+      });
+
+      // Get new URL
+      const newUrl = await getDownloadURL(newStorageRef);
+
+      // Handle thumbnail if it exists
+      let newThumbnailUrl = fileData.thumbnailUrl;
+      if (fileData.type === '2D' && fileData.thumbnailUrl) {
+        const oldThumbnailPath = fileData.path.replace('/images/', '/images/thumbnails/');
+        const newThumbnailPath = newStoragePath.replace('/images/', '/images/thumbnails/');
+        const oldThumbnailRef = ref(storage, oldThumbnailPath);
+        const newThumbnailRef = ref(storage, newThumbnailPath);
+
+        // Copy thumbnail
+        const thumbnailBlob = await (await fetch(fileData.thumbnailUrl)).blob();
+        await uploadBytes(newThumbnailRef, thumbnailBlob, {
+          contentType: 'image/jpeg',
+          customMetadata: {
+            ...fileData,
+            group: newGroup,
+            updatedAt: new Date().toISOString()
+          }
+        });
+
+        newThumbnailUrl = await getDownloadURL(newThumbnailRef);
+      }
+
+      // Update Firestore document
       await updateDoc(doc(db, 'files', fileId), {
+        name: newFileName,
+        path: newStoragePath,
+        url: newUrl,
+        thumbnailUrl: newThumbnailUrl,
         group: newGroup,
         updatedAt: new Date().toISOString()
       });
-      toast.success('File category updated');
+
+      // Delete old files
+      await deleteObject(oldStorageRef);
+      if (fileData.type === '2D' && fileData.thumbnailUrl) {
+        const oldThumbnailRef = ref(storage, fileData.path.replace('/images/', '/images/thumbnails/'));
+        await deleteObject(oldThumbnailRef);
+      }
+
+      toast.success('File category updated successfully');
     } catch (error: any) {
       console.error('Error updating file:', error);
       toast.error('Failed to update file category');

@@ -28,7 +28,6 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onPa
         id: '', // Will be set by Firestore
         dentistId: user.uid,
         name: name,
-        email: '',
         createdAt: now,
         updatedAt: now
       };
