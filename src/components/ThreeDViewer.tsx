@@ -17,6 +17,7 @@ interface ModelProps {
 
 const Model: React.FC<ModelProps> = ({ url, format }) => {
   const [geometry, setGeometry] = useState<BufferGeometry | null>(null);
+  const [hasColors, setHasColors] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,6 +38,7 @@ const Model: React.FC<ModelProps> = ({ url, format }) => {
           modelUrl,
           (loadedGeometry: BufferGeometry) => {
             loadedGeometry.computeVertexNormals();
+            setHasColors(loadedGeometry.attributes.color !== undefined);
             setGeometry(loadedGeometry);
           },
           undefined,
@@ -61,7 +63,11 @@ const Model: React.FC<ModelProps> = ({ url, format }) => {
 
   return (
     <mesh geometry={geometry}>
-      <meshStandardMaterial color="#808080" roughness={0.5} metalness={0.5} />
+      {hasColors ? (
+        <meshStandardMaterial vertexColors />
+      ) : (
+        <meshStandardMaterial color="#808080" roughness={0.5} metalness={0.5} />
+      )}
     </mesh>
   );
 };
@@ -82,9 +88,9 @@ const ThreeDViewer: React.FC<ThreeDViewerProps> = ({ file, onClose }) => {
           {onClose && (
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
-              <span className="text-2xl">×</span>
+              <span className="text-2xl leading-none">&times;</span>
             </button>
           )}
         </div>

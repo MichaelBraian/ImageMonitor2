@@ -102,88 +102,90 @@ const FilePreview: React.FC<FilePreviewProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <select
-              value={file.group}
-              onChange={(e) => onGroupChange(file.id, e.target.value)}
-              className="text-sm rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            >
-              {availableGroups.map(group => (
-                <option key={group} value={group}>{group}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center space-x-2">
-            {file.type === '2D' && !saving && (
+      {file.type === '3D' ? (
+        <ThreeDViewer file={file} onClose={onClose} />
+      ) : (
+        <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+              <select
+                value={file.group}
+                onChange={(e) => onGroupChange(file.id, e.target.value)}
+                className="text-sm rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              >
+                {availableGroups.map(group => (
+                  <option key={group} value={group}>{group}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center space-x-2">
+              {file.type === '2D' && !saving && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  disabled={saving}
+                >
+                  <Pencil className="w-5 h-5" />
+                </button>
+              )}
               <button
-                onClick={() => setIsEditing(true)}
+                onClick={handleDownload}
                 className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 disabled={saving}
               >
-                <Pencil className="w-5 h-5" />
+                <Download className="w-5 h-5" />
               </button>
+              <button 
+                onClick={onClose}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                disabled={saving}
+              >
+                <span className="text-2xl leading-none">&times;</span>
+              </button>
+            </div>
+          </div>
+          
+          <div className="p-4">
+            {loading ? (
+              <div className="flex items-center justify-center h-64">
+                <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+              </div>
+            ) : error ? (
+              <div className="text-center p-8">
+                <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+                <button
+                  onClick={retryLoading}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Retry Loading
+                </button>
+              </div>
+            ) : imageUrl ? (
+              <img 
+                src={imageUrl}
+                alt={file.name}
+                className="max-h-[70vh] mx-auto object-contain"
+                onError={() => {
+                  toast.error('Failed to load image');
+                  retryLoading();
+                }}
+              />
+            ) : (
+              <div className="text-center p-8">
+                <Box className="w-16 h-16 text-green-600 mx-auto mb-4" />
+                <p className="text-gray-700 dark:text-gray-300">Preview not available</p>
+                <button 
+                  onClick={handleDownload}
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mt-2 inline-block transition-colors"
+                >
+                  Download to view
+                </button>
+              </div>
             )}
-            <button
-              onClick={handleDownload}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              disabled={saving}
-            >
-              <Download className="w-5 h-5" />
-            </button>
-            <button 
-              onClick={onClose}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              disabled={saving}
-            >
-              <span className="text-2xl leading-none">&times;</span>
-            </button>
           </div>
         </div>
-        
-        <div className="p-4">
-          {file.type === '3D' ? (
-            <ThreeDViewer file={file} />
-          ) : loading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-            </div>
-          ) : error ? (
-            <div className="text-center p-8">
-              <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
-              <button
-                onClick={retryLoading}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Retry Loading
-              </button>
-            </div>
-          ) : imageUrl ? (
-            <img 
-              src={imageUrl}
-              alt={file.name}
-              className="max-h-[70vh] mx-auto object-contain"
-              onError={() => {
-                toast.error('Failed to load image');
-                retryLoading();
-              }}
-            />
-          ) : (
-            <div className="text-center p-8">
-              <Box className="w-16 h-16 text-green-600 mx-auto mb-4" />
-              <p className="text-gray-700 dark:text-gray-300">Preview not available</p>
-              <button 
-                onClick={handleDownload}
-                className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mt-2 inline-block transition-colors"
-              >
-                Download to view
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+      )}
 
       {isEditing && imageUrl && file.type === '2D' && (
         <ImageEditor
