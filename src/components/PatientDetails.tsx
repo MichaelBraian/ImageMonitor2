@@ -105,6 +105,7 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [currentFileId, setCurrentFileId] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<DentalFile | null>(null);
 
   const allowedFileTypes = '.jpg,.jpeg,.png,.stl,.ply';
 
@@ -231,37 +232,7 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
       setSelectedImageUrl(file.url);
       setCurrentFileId(file.id);
     } else {
-      handleDownload(file);
-    }
-  };
-
-  const handleDownload = async (file: DentalFile) => {
-    try {
-      let downloadUrl = file.url;
-      if (file.url.includes('firebasestorage.googleapis.com')) {
-        const path = decodeURIComponent(file.url.split('/o/')[1]?.split('?')[0]);
-        if (path) {
-          const storageRef = ref(storage, path);
-          downloadUrl = await getDownloadURL(storageRef);
-        }
-      }
-
-      const response = await fetch(downloadUrl);
-      if (!response.ok) throw new Error('Download failed');
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file.name;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast.success('Download started');
-    } catch (error) {
-      console.error('Download error:', error);
-      toast.error('Failed to download file');
+      setSelectedFile(file);
     }
   };
 
@@ -424,6 +395,15 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
             setSelectedImageUrl(null);
             setCurrentFileId(null);
           }}
+        />
+      )}
+
+      {selectedFile && (
+        <FilePreview
+          file={selectedFile}
+          onClose={() => setSelectedFile(null)}
+          onGroupChange={handleGroupChange}
+          availableGroups={availableGroups}
         />
       )}
     </div>
