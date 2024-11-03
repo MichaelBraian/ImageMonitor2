@@ -7,6 +7,7 @@ import type { DentalFile } from '../types';
 import ImageEditor from './ImageEditor';
 import toast from 'react-hot-toast';
 import { useImageLoader } from '../hooks/useImageLoader';
+import ThreeDViewer from './ThreeDViewer';
 
 interface FilePreviewProps {
   file: DentalFile;
@@ -252,6 +253,8 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                 retryLoading();
               }}
             />
+          ) : file.type === '3D' ? (
+            <ThreeDViewer file={file} onClose={onClose} />
           ) : (
             <div className="text-center p-8">
               <Box className="w-16 h-16 text-green-600 mx-auto mb-4" />

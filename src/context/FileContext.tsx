@@ -150,8 +150,8 @@ export function FileProvider({ children }: { children: ReactNode }) {
       const uploadResult = await uploadBytes(storageRef, file, metadata);
       const url = await getDownloadURL(uploadResult.ref);
 
-      // Create the file document with conditional thumbnailUrl
-      const fileData: DentalFile = {
+      // Create the file document without thumbnailUrl first
+      const fileData: Omit<DentalFile, 'thumbnailUrl'> = {
         id: fileId,
         name: newFileName,
         url: url,
@@ -161,16 +161,15 @@ export function FileProvider({ children }: { children: ReactNode }) {
         patientId: patientId,
         dentistId: user.uid,
         path: storagePath,
-        uploadedAt: new Date().toISOString(),
-        thumbnailUrl
+        uploadedAt: new Date().toISOString()
       };
 
-      // Only add thumbnailUrl if it exists (for 2D images)
-      if (thumbnailUrl) {
-        fileData.thumbnailUrl = thumbnailUrl;
-      }
+      // Only add thumbnailUrl if it exists for 2D files
+      const docData = type === '2D' && thumbnailUrl 
+        ? { ...fileData, thumbnailUrl } 
+        : fileData;
 
-      const docRef = await addDoc(collection(db, 'files'), fileData);
+      const docRef = await addDoc(collection(db, 'files'), docData);
       
       toast.success('File uploaded successfully');
       return { ...fileData, id: docRef.id };

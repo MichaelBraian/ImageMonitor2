@@ -11,6 +11,8 @@
     "configure-cors": "node scripts/configure-cors.js"
   },
   "dependencies": {
+    "@react-three/drei": "^9.99.0",
+    "@react-three/fiber": "^8.15.16",
     "firebase": "^10.8.1",
     "firebase-admin": "^11.11.1",
     "lucide-react": "^0.358.0",
@@ -18,12 +20,14 @@
     "react-dom": "^18.2.0",
     "react-easy-crop": "^5.0.5",
     "react-hot-toast": "^2.4.1",
+    "three": "^0.161.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
     "@types/react-easy-crop": "^1.16.0",
+    "@types/three": "^0.161.2",
     "@types/uuid": "^9.0.8",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",

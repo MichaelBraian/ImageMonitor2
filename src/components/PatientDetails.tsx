@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import ImageEditor from './ImageEditor';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { storage } from '../lib/firebase';
+import ThreeDThumbnail from './ThreeDThumbnail';
 
 interface PatientDetailsProps {
   patient: Patient;
@@ -25,6 +26,31 @@ interface FileCardProps {
 }
 
 const FileCard: React.FC<FileCardProps> = ({ file, onClick, isSelected, onSelect }) => {
+  if (file.type === '3D') {
+    return (
+      <div
+        className="border dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-white dark:bg-gray-800 cursor-pointer"
+        onClick={onClick}
+      >
+        <div className="h-48">
+          <ThreeDThumbnail
+            url={file.url}
+            format={file.format}
+            alt={file.name}
+          />
+        </div>
+        <div className="p-4">
+          <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
+            {file.name}
+          </div>
+          <div className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+            {new Date(file.uploadedAt).toLocaleDateString()}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="relative border dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-white dark:bg-gray-800 cursor-pointer"
