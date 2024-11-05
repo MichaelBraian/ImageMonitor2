@@ -13,7 +13,6 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ image, onCropComplete, onCl
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 200, height: 200 });
   const [imageObj, setImageObj] = useState<HTMLImageElement | null>(null);
-  const [scale, setScale] = useState(1);
 
   useEffect(() => {
     const img = new Image();
@@ -24,21 +23,18 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ image, onCropComplete, onCl
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          // Calculate scale to fit image within canvas while maintaining aspect ratio
           const scale = Math.min(
             canvas.width / img.width,
             canvas.height / img.height
           );
-          setScale(scale);
           
-          // Center the image
           const x = (canvas.width - img.width * scale) / 2;
           const y = (canvas.height - img.height * scale) / 2;
           
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
           
-          // Initialize crop area in the center
+          // Center the crop area
           setCropArea({
             x: (canvas.width - 200) / 2,
             y: (canvas.height - 200) / 2,
@@ -55,10 +51,13 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ image, onCropComplete, onCl
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        // Redraw everything
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         // Draw image
+        const scale = Math.min(
+          canvas.width / imageObj.width,
+          canvas.height / imageObj.height
+        );
         const x = (canvas.width - imageObj.width * scale) / 2;
         const y = (canvas.height - imageObj.height * scale) / 2;
         ctx.drawImage(imageObj, x, y, imageObj.width * scale, imageObj.height * scale);
@@ -67,8 +66,9 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ image, onCropComplete, onCl
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Clear crop area
-        ctx.clearRect(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
+        // Draw semi-transparent crop area
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.fillRect(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
         
         // Draw crop area border
         ctx.strokeStyle = '#fff';
@@ -76,7 +76,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ image, onCropComplete, onCl
         ctx.strokeRect(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
       }
     }
-  }, [cropArea, imageObj, scale]);
+  }, [cropArea, imageObj]);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -85,7 +85,6 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ image, onCropComplete, onCl
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       
-      // Check if click is within crop area
       if (
         x >= cropArea.x &&
         x <= cropArea.x + cropArea.width &&
@@ -105,7 +104,6 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ image, onCropComplete, onCl
       let newX = e.clientX - rect.left - startPos.x;
       let newY = e.clientY - rect.top - startPos.y;
       
-      // Constrain to canvas bounds
       newX = Math.max(0, Math.min(newX, canvas.width - cropArea.width));
       newY = Math.max(0, Math.min(newY, canvas.height - cropArea.height));
       
@@ -121,6 +119,26 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ image, onCropComplete, onCl
     setIsDragging(false);
   };
 
+  // Function to change crop area size
+  const changeCropSize = (newSize: number) => {
+    if (canvasRef.current) {
+      const canvas = canvasRef.current;
+      const maxSize = Math.min(canvas.width, canvas.height) - 40; // Leave some margin
+      const size = Math.min(Math.max(100, newSize), maxSize); // Min 100px, max maxSize
+      
+      // Keep the crop area centered when resizing
+      const newX = cropArea.x + (cropArea.width - size) / 2;
+      const newY = cropArea.y + (cropArea.height - size) / 2;
+      
+      setCropArea({
+        x: Math.max(0, Math.min(newX, canvas.width - size)),
+        y: Math.max(0, Math.min(newY, canvas.height - size)),
+        width: size,
+        height: size
+      });
+    }
+  };
+
   const handleCropComplete = () => {
     if (canvasRef.current && imageObj) {
       const canvas = document.createElement('canvas');
@@ -129,6 +147,11 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ image, onCropComplete, onCl
       const ctx = canvas.getContext('2d');
       
       if (ctx) {
+        const scale = Math.min(
+          canvasRef.current.width / imageObj.width,
+          canvasRef.current.height / imageObj.height
+        );
+        
         const sourceX = (cropArea.x - (canvasRef.current.width - imageObj.width * scale) / 2) / scale;
         const sourceY = (cropArea.y - (canvasRef.current.height - imageObj.height * scale) / 2) / scale;
         const sourceWidth = cropArea.width / scale;
@@ -152,23 +175,23 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ image, onCropComplete, onCl
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-2">
-      <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-[95vw] sm:max-w-2xl overflow-hidden">
-        <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">
+    <div className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex items-center justify-center p-4">
+      <div className="bg-gray-800 rounded-lg w-full max-w-2xl overflow-hidden">
+        <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+          <h3 className="text-lg font-medium text-white">
             Adjust Profile Photo
           </h3>
           <div className="flex space-x-2">
             <button
               onClick={() => handleCropComplete()}
-              className="p-2 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 transition-colors"
+              className="p-2 text-green-500 hover:text-green-400 transition-colors"
               aria-label="Save"
             >
               <Check className="w-5 h-5" />
             </button>
             <button
               onClick={onClose}
-              className="p-2 text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-300 transition-colors"
               aria-label="Close"
             >
               <X className="w-5 h-5" />
@@ -176,7 +199,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ image, onCropComplete, onCl
           </div>
         </div>
 
-        <div className="relative p-2 sm:p-4">
+        <div className="p-4">
           <canvas
             ref={canvasRef}
             width={Math.min(600, window.innerWidth - 32)}
@@ -187,17 +210,36 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ image, onCropComplete, onCl
             onMouseLeave={handleMouseUp}
             onTouchStart={(e) => {
               const touch = e.touches[0];
-              handleMouseDown({ clientX: touch.clientX, clientY: touch.clientY } as React.MouseEvent);
+              handleMouseDown({ 
+                clientX: touch.clientX, 
+                clientY: touch.clientY 
+              } as React.MouseEvent<HTMLCanvasElement>);
             }}
             onTouchMove={(e) => {
               const touch = e.touches[0];
-              handleMouseMove({ clientX: touch.clientX, clientY: touch.clientY } as React.MouseEvent);
+              handleMouseMove({ 
+                clientX: touch.clientX, 
+                clientY: touch.clientY 
+              } as React.MouseEvent<HTMLCanvasElement>);
             }}
-            onTouchEnd={() => handleMouseUp()}
-            className="cursor-move max-w-full max-h-[70vh] object-contain"
+            onTouchEnd={handleMouseUp}
+            className="max-w-full max-h-[70vh] object-contain cursor-move"
           />
-          <p className="mt-2 text-xs sm:text-sm text-center text-gray-500 dark:text-gray-400">
-            Drag to adjust • Double tap to center
+          <div className="mt-4 flex justify-center items-center space-x-4">
+            <input
+              type="range"
+              min="100"
+              max="300"
+              value={cropArea.width}
+              onChange={(e) => changeCropSize(Number(e.target.value))}
+              className="w-48 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            />
+            <span className="text-sm text-gray-400">
+              Adjust crop size
+            </span>
+          </div>
+          <p className="mt-2 text-sm text-center text-gray-400">
+            Drag to adjust position • Use slider to resize
           </p>
         </div>
       </div>

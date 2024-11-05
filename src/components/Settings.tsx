@@ -135,17 +135,11 @@ const Settings: React.FC = () => {
     profileImage: ''
   });
 
-  const [isEditingPassword, setIsEditingPassword] = useState(false);
   const [isCropping, setIsCropping] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [newCategory, setNewCategory] = useState('');
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
-  const [passwords, setPasswords] = useState({
-    current: '',
-    new: '',
-    confirm: ''
-  });
 
   useEffect(() => {
     if (user) {
@@ -216,11 +210,6 @@ const Settings: React.FC = () => {
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setProfile(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setPasswords(prev => ({ ...prev, [name]: value }));
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -415,63 +404,6 @@ const Settings: React.FC = () => {
               />
             </div>
           </div>
-        </div>
-
-        {/* Password Section */}
-        <div className="p-6">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Change Password</h3>
-          {!isEditingPassword ? (
-            <PasswordToggle onClick={() => setIsEditingPassword(true)} />
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="current" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Current Password
-                </label>
-                <input
-                  type="password"
-                  id="current"
-                  name="current"
-                  value={passwords.current}
-                  onChange={handlePasswordChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
-                />
-              </div>
-              <div>
-                <label htmlFor="new" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  New Password
-                </label>
-                <input
-                  type="password"
-                  id="new"
-                  name="new"
-                  value={passwords.new}
-                  onChange={handlePasswordChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
-                />
-              </div>
-              <div>
-                <label htmlFor="confirm" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Confirm New Password
-                </label>
-                <input
-                  type="password"
-                  id="confirm"
-                  name="confirm"
-                  value={passwords.confirm}
-                  onChange={handlePasswordChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
-                />
-              </div>
-              <PasswordSection 
-                onCancel={() => {
-                  setIsEditingPassword(false);
-                  setPasswords({ current: '', new: '', confirm: '' });
-                }}
-                onUpdate={() => {/* handle password update */}}
-              />
-            </div>
-          )}
         </div>
 
         {/* Save Changes Button */}
