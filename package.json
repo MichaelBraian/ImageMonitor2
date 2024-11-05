@@ -18,7 +18,7 @@
     "lucide-react": "^0.358.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-easy-crop": "^5.0.5",
+    "react-easy-crop": "^5.1.0",
     "react-hot-toast": "^2.4.1",
     "three": "^0.161.0",
     "uuid": "^9.0.1"

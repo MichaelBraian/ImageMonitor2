@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Upload, ArrowLeft, Box, Loader2, AlertTriangle, Check } from 'lucide-react';
 import { useFiles } from '../context/FileContext';
 import { useAccessControl } from '../hooks/useAccessControl';
@@ -12,6 +12,7 @@ import ImageEditor from './ImageEditor';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { storage } from '../lib/firebase';
 import ThreeDThumbnail from './ThreeDThumbnail';
+import { useTouchFeedback } from '../hooks/useTouchFeedback';
 
 interface PatientDetailsProps {
   patient: Patient;
@@ -25,7 +26,16 @@ interface FileCardProps {
   onSelect: (e: React.MouseEvent) => void;
 }
 
+interface TouchInfo {
+  startY: number;
+  currentY: number;
+}
+
 const FileCard: React.FC<FileCardProps> = ({ file, onClick, isSelected, onSelect }) => {
+  const { touchProps } = useTouchFeedback({
+    activeClass: 'bg-gray-100 dark:bg-gray-700'
+  });
+
   if (file.type === '3D') {
     return (
       <div
@@ -53,7 +63,8 @@ const FileCard: React.FC<FileCardProps> = ({ file, onClick, isSelected, onSelect
 
   return (
     <div
-      className="relative border dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-white dark:bg-gray-800 cursor-pointer"
+      {...touchProps}
+      className={`relative border dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-md transition-all bg-white dark:bg-gray-800 cursor-pointer ${touchProps.className}`}
       onClick={onClick}
     >
       <div 
@@ -106,6 +117,10 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [currentFileId, setCurrentFileId] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<DentalFile | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const touchInfo = useRef<TouchInfo>({ startY: 0, currentY: 0 });
+  const PULL_THRESHOLD = 100; // pixels needed to trigger refresh
 
   const allowedFileTypes = '.jpg,.jpeg,.png,.stl,.ply';
 
@@ -263,6 +278,39 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
     }
   };
 
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (window.scrollY === 0) { // Only enable pull-to-refresh at top of page
+      touchInfo.current.startY = e.touches[0].clientY;
+      touchInfo.current.currentY = e.touches[0].clientY;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (touchInfo.current.startY > 0) {
+      touchInfo.current.currentY = e.touches[0].clientY;
+      const distance = Math.max(0, (touchInfo.current.currentY - touchInfo.current.startY) * 0.5);
+      setPullDistance(distance);
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(async () => {
+    if (pullDistance > PULL_THRESHOLD && !isRefreshing) {
+      setIsRefreshing(true);
+      try {
+        await Promise.all([loadFiles(), loadCategories()]);
+        toast.success('Data refreshed');
+      } catch (error) {
+        console.error('Refresh error:', error);
+        toast.error('Failed to refresh data');
+      } finally {
+        setIsRefreshing(false);
+      }
+    }
+    touchInfo.current.startY = 0;
+    touchInfo.current.currentY = 0;
+    setPullDistance(0);
+  }, [pullDistance, isRefreshing, loadFiles, loadCategories]);
+
   if (accessLoading || isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -293,119 +341,154 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow transition-colors">
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <button
-          onClick={onBack}
-          className="flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 mb-4 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Patients
-        </button>
-        
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{patient.name}'s Records</h2>
-          <div className="flex items-center space-x-4">
-            {selectedFiles.size > 0 && (
-              <select
-                onChange={(e) => handleBulkCategoryUpdate(e.target.value)}
-                className="rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                defaultValue=""
-              >
-                <option value="" disabled>Move to category...</option>
-                {availableGroups.map(group => (
-                  <option key={group} value={group}>{group}</option>
-                ))}
-              </select>
-            )}
-            <label className={`inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-              {uploading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload Files
-                </>
-              )}
-              <input
-                type="file"
-                className="hidden"
-                multiple
-                accept={allowedFileTypes}
-                onChange={handleFileUpload}
-                disabled={uploading}
-              />
-            </label>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-4 mb-6">
-          <select
-            value={selectedGroup}
-            onChange={(e) => setSelectedGroup(e.target.value)}
-            className="rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+    <div 
+      className="bg-white dark:bg-gray-800 rounded-lg shadow transition-colors"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div 
+        className="transition-transform duration-200 ease-out"
+        style={{ 
+          transform: `translateY(${pullDistance}px)`,
+        }}
+      >
+        {pullDistance > 0 && (
+          <div 
+            className="absolute top-0 left-0 right-0 flex items-center justify-center p-2 text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700"
+            style={{ 
+              height: `${pullDistance}px`,
+              opacity: Math.min(pullDistance / PULL_THRESHOLD, 1)
+            }}
           >
-            <option value="All">All Files</option>
-            {availableGroups.map(group => (
-              <option key={group} value={group}>{group}</option>
-            ))}
-          </select>
-          
-          {selectedFiles.size > 0 && (
-            <button
-              onClick={() => setSelectedFiles(new Set())}
-              className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-            >
-              Clear selection ({selectedFiles.size})
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="p-6">
-        {isLoading ? (
-          <div className="text-center text-gray-500 dark:text-gray-400">Loading files...</div>
-        ) : filteredFiles.length === 0 ? (
-          <div className="text-center text-gray-500 dark:text-gray-400">
-            {files.length === 0 ? 'No files uploaded yet' : 'No files in this category'}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredFiles.map((file) => (
-              <FileCard
-                key={file.id}
-                file={file}
-                onClick={() => handleImageClick(file)}
-                isSelected={selectedFiles.has(file.id)}
-                onSelect={(e) => toggleFileSelection(e, file.id)}
-              />
-            ))}
+            {isRefreshing ? (
+              <div className="flex items-center">
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Refreshing...
+              </div>
+            ) : (
+              <div>
+                {pullDistance > PULL_THRESHOLD ? 'Release to refresh' : 'Pull to refresh'}
+              </div>
+            )}
           </div>
         )}
+
+        <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={onBack}
+            className="flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 mb-4 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Patients
+          </button>
+          
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{patient.name}'s Records</h2>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              {selectedFiles.size > 0 && (
+                <select
+                  onChange={(e) => handleBulkCategoryUpdate(e.target.value)}
+                  className="w-full sm:w-auto rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  defaultValue=""
+                >
+                  <option value="" disabled>Move to category...</option>
+                  {availableGroups.map(group => (
+                    <option key={group} value={group}>{group}</option>
+                  ))}
+                </select>
+              )}
+              <label className={`inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Files
+                  </>
+                )}
+                <input
+                  type="file"
+                  className="hidden"
+                  multiple
+                  accept={allowedFileTypes}
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            <select
+              value={selectedGroup}
+              onChange={(e) => setSelectedGroup(e.target.value)}
+              className="w-full sm:w-auto rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+            >
+              <option value="All">All Files</option>
+              {availableGroups.map(group => (
+                <option key={group} value={group}>{group}</option>
+              ))}
+            </select>
+            
+            {selectedFiles.size > 0 && (
+              <button
+                onClick={() => setSelectedFiles(new Set())}
+                className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              >
+                Clear selection ({selectedFiles.size})
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="p-4 md:p-6">
+          {isLoading ? (
+            <div className="text-center text-gray-500 dark:text-gray-400">Loading files...</div>
+          ) : filteredFiles.length === 0 ? (
+            <div className="text-center text-gray-500 dark:text-gray-400">
+              {files.length === 0 ? 'No files uploaded yet' : 'No files in this category'}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredFiles.map((file) => (
+                <FileCard
+                  key={file.id}
+                  file={file}
+                  onClick={() => handleImageClick(file)}
+                  isSelected={selectedFiles.has(file.id)}
+                  onSelect={(e) => toggleFileSelection(e, file.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {selectedImageUrl && (
+          <ImageEditor
+            imageUrl={selectedImageUrl}
+            onSave={handleSaveEdit}
+            onClose={() => {
+              setSelectedImageUrl(null);
+              setCurrentFileId(null);
+            }}
+          />
+        )}
+
+        {selectedFile && (
+          <FilePreview
+            file={selectedFile}
+            onClose={() => setSelectedFile(null)}
+            onGroupChange={handleGroupChange}
+            availableGroups={availableGroups}
+            allFiles={filteredFiles}
+            onFileChange={setSelectedFile}
+          />
+        )}
       </div>
-
-      {selectedImageUrl && (
-        <ImageEditor
-          imageUrl={selectedImageUrl}
-          onSave={handleSaveEdit}
-          onClose={() => {
-            setSelectedImageUrl(null);
-            setCurrentFileId(null);
-          }}
-        />
-      )}
-
-      {selectedFile && (
-        <FilePreview
-          file={selectedFile}
-          onClose={() => setSelectedFile(null)}
-          onGroupChange={handleGroupChange}
-          availableGroups={availableGroups}
-        />
-      )}
     </div>
   );
 };

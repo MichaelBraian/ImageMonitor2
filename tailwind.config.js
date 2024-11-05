@@ -19,6 +19,14 @@ export default {
           950: '#082f49',
         },
       },
+      screens: {
+        'xs': '375px',    // Small phones
+        'sm': '640px',    // Larger phones
+        'md': '768px',    // Tablets
+        'lg': '1024px',   // Laptops
+        'xl': '1280px',   // Desktops
+        '2xl': '1536px'   // Large screens
+      },
     },
   },
   plugins: [],

@@ -7,6 +7,7 @@ import { Box, Loader2 } from 'lucide-react';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { storage } from '../lib/firebase';
 import type { BufferGeometry } from 'three';
+import { TOUCH } from 'three';
 
 interface ThreeDThumbnailProps {
   url: string;
@@ -18,6 +19,7 @@ const ThreeDThumbnail: React.FC<ThreeDThumbnailProps> = ({ url, format, alt }) =
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [geometry, setGeometry] = React.useState<BufferGeometry | null>(null);
+  const [hasColors, setHasColors] = React.useState(false);
 
   useEffect(() => {
     const loadModel = async () => {
@@ -37,6 +39,7 @@ const ThreeDThumbnail: React.FC<ThreeDThumbnailProps> = ({ url, format, alt }) =
           modelUrl,
           (loadedGeometry: BufferGeometry) => {
             loadedGeometry.computeVertexNormals();
+            setHasColors(loadedGeometry.attributes.color !== undefined);
             setGeometry(loadedGeometry);
             setLoading(false);
           },
@@ -78,10 +81,22 @@ const ThreeDThumbnail: React.FC<ThreeDThumbnailProps> = ({ url, format, alt }) =
       <Canvas shadows dpr={[1, 2]}>
         <Stage environment="city" intensity={0.6}>
           <mesh geometry={geometry}>
-            <meshStandardMaterial color="#808080" roughness={0.5} metalness={0.5} />
+            {hasColors ? (
+              <meshStandardMaterial vertexColors />
+            ) : (
+              <meshStandardMaterial color="#808080" roughness={0.5} metalness={0.5} />
+            )}
           </mesh>
         </Stage>
-        <OrbitControls enableZoom={false} enablePan={false} autoRotate />
+        <OrbitControls 
+          enableZoom={false} 
+          enablePan={false} 
+          autoRotate 
+          autoRotateSpeed={2}
+          touches={{
+            ONE: TOUCH.ROTATE
+          }}
+        />
         <PerspectiveCamera makeDefault position={[0, 0, 100]} />
       </Canvas>
     </div>

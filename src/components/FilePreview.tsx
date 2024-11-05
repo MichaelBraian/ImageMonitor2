@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Download, Box, Loader2, RefreshCw, Pencil } from 'lucide-react';
 import { ref, getDownloadURL, uploadString } from 'firebase/storage';
 import { storage, db } from '../lib/firebase';
@@ -9,11 +9,18 @@ import toast from 'react-hot-toast';
 import { useImageLoader } from '../hooks/useImageLoader';
 import ThreeDViewer from './ThreeDViewer';
 
+interface TouchPosition {
+  startX: number;
+  startY: number;
+}
+
 interface FilePreviewProps {
   file: DentalFile;
   onClose: () => void;
   onGroupChange: (fileId: string, newGroup: string) => void;
   availableGroups: string[];
+  allFiles?: DentalFile[];
+  onFileChange?: (file: DentalFile) => void;
 }
 
 const FilePreview: React.FC<FilePreviewProps> = ({ 
@@ -21,10 +28,38 @@ const FilePreview: React.FC<FilePreviewProps> = ({
   onClose, 
   onGroupChange,
   availableGroups,
+  allFiles,
+  onFileChange,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const { imageUrl, loading, error, retryLoading } = useImageLoader(file.url);
+
+  const touchPosition = useRef<TouchPosition>({ startX: 0, startY: 0 });
+  const SWIPE_THRESHOLD = 50;
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchPosition.current = {
+      startX: e.touches[0].clientX,
+      startY: e.touches[0].clientY
+    };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!allFiles || !onFileChange) return;
+
+    const currentX = e.changedTouches[0].clientX;
+    const diff = touchPosition.current.startX - currentX;
+    const currentIndex = allFiles.findIndex(f => f.id === file.id);
+
+    if (Math.abs(diff) > SWIPE_THRESHOLD) {
+      if (diff > 0 && currentIndex < allFiles.length - 1) {
+        onFileChange(allFiles[currentIndex + 1]);
+      } else if (diff < 0 && currentIndex > 0) {
+        onFileChange(allFiles[currentIndex - 1]);
+      }
+    }
+  };
 
   const handleDownload = async () => {
     try {
@@ -101,24 +136,28 @@ const FilePreview: React.FC<FilePreviewProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {file.type === '3D' ? (
         <ThreeDViewer file={file} onClose={onClose} />
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-            <div className="flex items-center space-x-2">
+        <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[95vh] flex flex-col">
+          <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0 sm:justify-between">
+            <div className="flex items-center w-full sm:w-auto">
               <select
                 value={file.group}
                 onChange={(e) => onGroupChange(file.id, e.target.value)}
-                className="text-sm rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                className="w-full sm:w-auto text-sm rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
               >
                 {availableGroups.map(group => (
                   <option key={group} value={group}>{group}</option>
                 ))}
               </select>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center justify-end space-x-2">
               {file.type === '2D' && !saving && (
                 <button
                   onClick={() => setIsEditing(true)}
@@ -145,13 +184,13 @@ const FilePreview: React.FC<FilePreviewProps> = ({
             </div>
           </div>
           
-          <div className="p-4">
+          <div className="flex-1 overflow-auto p-3 sm:p-4">
             {loading ? (
               <div className="flex items-center justify-center h-64">
                 <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
               </div>
             ) : error ? (
-              <div className="text-center p-8">
+              <div className="text-center p-4 sm:p-8">
                 <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
                 <button
                   onClick={retryLoading}
@@ -162,18 +201,20 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                 </button>
               </div>
             ) : imageUrl ? (
-              <img 
-                src={imageUrl}
-                alt={file.name}
-                className="max-h-[70vh] mx-auto object-contain"
-                onError={() => {
-                  toast.error('Failed to load image');
-                  retryLoading();
-                }}
-              />
+              <div className="flex items-center justify-center min-h-[50vh]">
+                <img 
+                  src={imageUrl}
+                  alt={file.name}
+                  className="max-w-full max-h-[70vh] object-contain"
+                  onError={() => {
+                    toast.error('Failed to load image');
+                    retryLoading();
+                  }}
+                />
+              </div>
             ) : (
-              <div className="text-center p-8">
-                <Box className="w-16 h-16 text-green-600 mx-auto mb-4" />
+              <div className="text-center p-4 sm:p-8">
+                <Box className="w-12 h-12 sm:w-16 sm:h-16 text-green-600 mx-auto mb-4" />
                 <p className="text-gray-700 dark:text-gray-300">Preview not available</p>
                 <button 
                   onClick={handleDownload}

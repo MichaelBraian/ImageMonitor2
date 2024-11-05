@@ -9,6 +9,7 @@ import { ref, getDownloadURL } from 'firebase/storage';
 import { storage } from '../lib/firebase';
 import toast from 'react-hot-toast';
 import type { BufferGeometry } from 'three';
+import { TOUCH } from 'three';
 
 interface ModelProps {
   url: string;
@@ -79,10 +80,10 @@ interface ThreeDViewerProps {
 
 const ThreeDViewer: React.FC<ThreeDViewerProps> = ({ file, onClose }) => {
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4">
       <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-4xl overflow-hidden">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+        <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+          <h3 className="text-sm sm:text-lg font-medium text-gray-900 dark:text-white truncate">
             {file.name}
           </h3>
           {onClose && (
@@ -95,19 +96,29 @@ const ThreeDViewer: React.FC<ThreeDViewerProps> = ({ file, onClose }) => {
           )}
         </div>
         
-        <div className="relative" style={{ height: '70vh' }}>
+        <div className="relative" style={{ height: 'calc(100vh - 200px)' }}>
           <Canvas shadows dpr={[1, 2]} camera={{ position: [0, 0, 100], fov: 50 }}>
             <Suspense fallback={null}>
               <Stage environment="city" intensity={0.6}>
                 <Model url={file.url} format={file.format} />
               </Stage>
             </Suspense>
-            <OrbitControls makeDefault />
+            <OrbitControls 
+              makeDefault
+              enableDamping
+              dampingFactor={0.05}
+              rotateSpeed={0.5}
+              touches={{
+                ONE: TOUCH.ROTATE,
+                TWO: TOUCH.DOLLY_PAN
+              }}
+            />
             <PerspectiveCamera makeDefault position={[0, 0, 100]} />
           </Canvas>
 
-          <div className="absolute bottom-4 right-4 text-sm text-gray-500 dark:text-gray-400">
-            Use mouse to rotate • Scroll to zoom • Shift + drag to pan
+          <div className="absolute bottom-4 right-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 bg-opacity-75 dark:bg-opacity-75 p-2 rounded-lg">
+            <span className="hidden sm:inline">Use mouse to rotate • Scroll to zoom • Shift + drag to pan</span>
+            <span className="sm:hidden">Touch to rotate • Pinch to zoom • Two fingers to pan</span>
           </div>
         </div>
       </div>

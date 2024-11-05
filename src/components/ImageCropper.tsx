@@ -152,38 +152,54 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ image, onCropComplete, onCl
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center">
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Crop Image</h3>
+    <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-2">
+      <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-[95vw] sm:max-w-2xl overflow-hidden">
+        <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+          <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">
+            Adjust Profile Photo
+          </h3>
           <div className="flex space-x-2">
             <button
-              onClick={handleCropComplete}
-              className="p-2 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400"
+              onClick={() => handleCropComplete()}
+              className="p-2 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 transition-colors"
+              aria-label="Save"
             >
               <Check className="w-5 h-5" />
             </button>
             <button
               onClick={onClose}
-              className="p-2 text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              className="p-2 text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+              aria-label="Close"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
-        <canvas
-          ref={canvasRef}
-          width={600}
-          height={400}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          className="cursor-move"
-        />
-        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-          Drag to adjust the crop area
-        </p>
+
+        <div className="relative p-2 sm:p-4">
+          <canvas
+            ref={canvasRef}
+            width={Math.min(600, window.innerWidth - 32)}
+            height={Math.min(400, window.innerHeight - 200)}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onTouchStart={(e) => {
+              const touch = e.touches[0];
+              handleMouseDown({ clientX: touch.clientX, clientY: touch.clientY } as React.MouseEvent);
+            }}
+            onTouchMove={(e) => {
+              const touch = e.touches[0];
+              handleMouseMove({ clientX: touch.clientX, clientY: touch.clientY } as React.MouseEvent);
+            }}
+            onTouchEnd={() => handleMouseUp()}
+            className="cursor-move max-w-full max-h-[70vh] object-contain"
+          />
+          <p className="mt-2 text-xs sm:text-sm text-center text-gray-500 dark:text-gray-400">
+            Drag to adjust • Double tap to center
+          </p>
+        </div>
       </div>
     </div>
   );

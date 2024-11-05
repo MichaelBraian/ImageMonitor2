@@ -2,82 +2,37 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
+    // Helper function to check if user is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
-    
-    function isUserAdmin() {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    
-    function isDentistForPatient(patientId) {
-      return isAuthenticated() &&
-        exists(/databases/$(database)/documents/patients/$(patientId)) &&
-        get(/databases/$(database)/documents/patients/$(patientId)).data.dentistId == request.auth.uid;
-    }
-    
-    // Files collection
-    match /files/{fileId} {
-      allow read: if isAuthenticated() && (
-        resource.data.dentistId == request.auth.uid ||
-        isDentistForPatient(resource.data.patientId) ||
-        isUserAdmin()
-      );
-      
-      allow create: if isAuthenticated() && (
-        request.resource.data.dentistId == request.auth.uid ||
-        isUserAdmin()
-      );
-      
-      allow update: if isAuthenticated() && (
-        resource.data.dentistId == request.auth.uid ||
-        isUserAdmin()
-      );
-      
-      allow delete: if isAuthenticated() && (
-        resource.data.dentistId == request.auth.uid ||
-        isUserAdmin()
-      );
-    }
-    
-    // Patients collection
-    match /patients/{patientId} {
-      allow read: if isAuthenticated() && (
-        resource.data.dentistId == request.auth.uid ||
-        isUserAdmin()
-      );
-      
-      allow create: if isAuthenticated() && (
-        request.resource.data.dentistId == request.auth.uid ||
-        isUserAdmin()
-      );
-      
-      allow update, delete: if isAuthenticated() && (
-        resource.data.dentistId == request.auth.uid ||
-        isUserAdmin()
-      );
-    }
-    
-    // Users collection
-    match /users/{userId} {
-      allow read: if isAuthenticated() && (
-        request.auth.uid == userId ||
-        isUserAdmin()
-      );
-      
-      allow write: if isAuthenticated() && (
-        request.auth.uid == userId ||
-        isUserAdmin()
-      );
+
+    // Helper function to check if user owns the document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
     }
 
-    // Settings collection
-    match /settings/{docId} {
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+
+    // Patients collection
+    match /patients/{patientId} {
+      allow read, write: if isAuthenticated() && 
+        (resource == null || resource.data.dentistId == request.auth.uid);
+    }
+
+    // Files collection
+    match /files/{fileId} {
+      allow read, write: if isAuthenticated() && 
+        (resource == null || resource.data.dentistId == request.auth.uid);
+    }
+
+    // Settings collection - allow authenticated users to read and write
+    match /settings/{document=**} {
       allow read: if isAuthenticated();
-      allow write: if isUserAdmin();
+      allow write: if isAuthenticated();
     }
   }
 }

@@ -22,42 +22,31 @@ function App() {
     return <Auth />;
   }
 
-  const renderView = () => {
-    switch (currentView) {
-      case 'settings':
-        return <Settings />;
-      case 'files':
-        return <FileList />;
-      default:
-        return <PatientList />;
-    }
-  };
-
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      <Sidebar 
-        menuItems={menuItems} 
-        onMenuClick={(id) => setCurrentView(id)}
-        currentView={currentView}
-      />
-      <main className="flex-1 overflow-auto p-8">
-        <header className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              {currentView.charAt(0).toUpperCase() + currentView.slice(1)}
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+      <div className="pt-16 md:pt-0 md:pl-64 min-h-screen">
+        <div className="p-4">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              {currentView === 'patients' ? 'Patients' : 'Settings'}
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              {currentView === 'patients'
+              {currentView === 'patients' 
                 ? 'Manage your patients and dental records efficiently'
-                : currentView === 'files'
-                ? 'View and manage all dental files and records'
-                : 'Configure your account and application preferences'}
+                : 'Configure your account and application preferences'
+              }
             </p>
           </div>
-          <ThemeToggle />
-        </header>
-        {renderView()}
-      </main>
+          <main>
+            {currentView === 'patients' ? <PatientList /> : <Settings />}
+          </main>
+        </div>
+      </div>
+      <Sidebar
+        menuItems={menuItems}
+        onMenuClick={setCurrentView}
+        currentView={currentView}
+      />
     </div>
   );
 }

@@ -56,7 +56,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl: initialImageUrl, on
   };
 
   const containerStyle = {
-    height: 'calc(100vh - 200px)',
+    height: '60vh',
     transform: `scale(${flipH ? -1 : 1}, ${flipV ? -1 : 1})`,
     transition: 'transform 0.3s ease'
   };
@@ -112,121 +112,119 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageUrl: initialImageUrl, on
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-      <div className="bg-gray-900 rounded-lg w-full max-w-6xl overflow-hidden">
-        <div className="flex justify-between items-center p-4 border-b border-gray-700">
-          <h3 className="text-lg font-medium text-white">Edit Image</h3>
-          <div className="flex space-x-2">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4 mr-2" />
-                  Save Changes
-                </>
-              )}
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-200 rounded-lg"
-              disabled={saving}
-            >
-              <X className="w-6 h-6" />
-            </button>
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex flex-col h-screen">
+      <div className="flex justify-between items-center p-4 border-b border-gray-700 bg-gray-900">
+        <h3 className="text-lg font-medium text-white">Edit Image</h3>
+        <div className="flex space-x-2">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <span className="hidden sm:inline">Saving...</span>
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Save Changes</span>
+              </>
+            )}
+          </button>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-200 rounded-lg"
+            disabled={saving}
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+      </div>
+
+      <div className="relative" style={containerStyle}>
+        <Cropper
+          image={imageUrl}
+          crop={crop}
+          zoom={zoom}
+          rotation={rotation}
+          aspect={undefined}
+          onCropChange={setCrop}
+          onCropComplete={onCropComplete}
+          onZoomChange={setZoom}
+          objectFit="contain"
+          cropShape="rect"
+          showGrid={true}
+        />
+      </div>
+
+      <div className="bg-gray-800 border-t border-gray-700 p-4">
+        <div className="flex flex-col space-y-4 max-w-lg mx-auto">
+          <div className="flex items-center justify-center space-x-4">
+            <Minus className="w-4 h-4 text-gray-400 hidden sm:block" />
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              value={rotation}
+              onChange={(e) => setRotation(Number(e.target.value))}
+              className="w-full sm:w-64 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              title={`Rotation: ${rotation}°`}
+            />
+            <Plus className="w-4 h-4 text-gray-400 hidden sm:block" />
+            <span className="text-gray-400 min-w-[60px] text-sm hidden sm:block">
+              {rotation.toFixed(0)}°
+            </span>
           </div>
-        </div>
 
-        <div className="relative w-full" style={containerStyle}>
-          <Cropper
-            image={imageUrl}
-            crop={crop}
-            zoom={zoom}
-            rotation={rotation}
-            aspect={undefined}
-            onCropChange={setCrop}
-            onCropComplete={onCropComplete}
-            onZoomChange={setZoom}
-            objectFit="contain"
-            cropShape="rect"
-            showGrid={true}
-          />
-        </div>
-
-        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gray-800 border-t border-gray-700">
-          <div className="flex flex-col space-y-4">
-            <div className="flex items-center justify-center space-x-4">
-              <Minus className="w-4 h-4 text-gray-400" />
-              <input
-                type="range"
-                min="-180"
-                max="180"
-                value={rotation}
-                onChange={(e) => setRotation(Number(e.target.value))}
-                className="w-64 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                title={`Rotation: ${rotation}°`}
-              />
-              <Plus className="w-4 h-4 text-gray-400" />
-              <span className="text-gray-400 min-w-[60px] text-sm">
-                {rotation.toFixed(0)}°
-              </span>
-            </div>
-
-            <div className="flex justify-center space-x-4">
-              <button
-                onClick={() => setRotation(r => r - 90)}
-                className="p-2 text-gray-400 hover:text-white rounded-lg"
-                title="Rotate Left 90°"
-              >
-                <RotateCcw className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setRotation(r => r + 90)}
-                className="p-2 text-gray-400 hover:text-white rounded-lg"
-                title="Rotate Right 90°"
-              >
-                <RotateCw className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setZoom(z => Math.min(z + 0.1, 3))}
-                className="p-2 text-gray-400 hover:text-white rounded-lg"
-                title="Zoom In"
-              >
-                <ZoomIn className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setZoom(z => Math.max(z - 0.1, 1))}
-                className="p-2 text-gray-400 hover:text-white rounded-lg"
-                title="Zoom Out"
-              >
-                <ZoomOut className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setFlipH(f => !f)}
-                className={`p-2 rounded-lg ${
-                  flipH ? 'text-blue-500 bg-blue-500/20' : 'text-gray-400 hover:text-white'
-                }`}
-                title="Flip Horizontal"
-              >
-                <FlipHorizontal className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setFlipV(f => !f)}
-                className={`p-2 rounded-lg ${
-                  flipV ? 'text-blue-500 bg-blue-500/20' : 'text-gray-400 hover:text-white'
-                }`}
-                title="Flip Vertical"
-              >
-                <FlipVertical className="w-5 h-5" />
-              </button>
-            </div>
+          <div className="flex justify-center flex-wrap gap-2">
+            <button
+              onClick={() => setRotation(r => r - 90)}
+              className="p-2 text-gray-400 hover:text-white rounded-lg"
+              title="Rotate Left 90°"
+            >
+              <RotateCcw className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setRotation(r => r + 90)}
+              className="p-2 text-gray-400 hover:text-white rounded-lg"
+              title="Rotate Right 90°"
+            >
+              <RotateCw className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setZoom(z => Math.min(z + 0.1, 3))}
+              className="p-2 text-gray-400 hover:text-white rounded-lg"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setZoom(z => Math.max(z - 0.1, 1))}
+              className="p-2 text-gray-400 hover:text-white rounded-lg"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setFlipH(f => !f)}
+              className={`p-2 rounded-lg ${
+                flipH ? 'text-blue-500 bg-blue-500/20' : 'text-gray-400 hover:text-white'
+              }`}
+              title="Flip Horizontal"
+            >
+              <FlipHorizontal className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setFlipV(f => !f)}
+              className={`p-2 rounded-lg ${
+                flipV ? 'text-blue-500 bg-blue-500/20' : 'text-gray-400 hover:text-white'
+              }`}
+              title="Flip Vertical"
+            >
+              <FlipVertical className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </div>

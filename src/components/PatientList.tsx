@@ -7,6 +7,86 @@ import AddPatientModal from './AddPatientModal';
 import PatientDetails from './PatientDetails';
 import type { Patient } from '../types';
 import toast from 'react-hot-toast';
+import { useTouchFeedback } from '../hooks/useTouchFeedback';
+
+const PatientCard: React.FC<{
+  patient: Patient;
+  isSelected: boolean;
+  onSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onDelete: (e: React.MouseEvent) => void;
+  onClick: () => void;
+  fileCount: number;
+}> = ({ patient, isSelected, onSelect, onDelete, onClick, fileCount }) => {
+  const { touchProps } = useTouchFeedback({
+    activeClass: 'bg-gray-100 dark:bg-gray-700'
+  });
+
+  return (
+    <div
+      key={patient.id}
+      {...touchProps}
+      className={`p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${touchProps.className}`}
+      onClick={onClick}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={onSelect}
+            onClick={e => e.stopPropagation()}
+            className="mr-3 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+          />
+          <div className="text-sm font-medium text-gray-900 dark:text-white">{patient.name}</div>
+        </div>
+        <button
+          onClick={onDelete}
+          className="text-red-600 hover:text-red-900 dark:text-red-500 dark:hover:text-red-400 transition-colors"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="ml-8 text-xs text-gray-500 dark:text-gray-400 space-y-1">
+        <div>Added: {new Date(patient.createdAt).toLocaleDateString()}</div>
+        <div>Files: {fileCount}</div>
+      </div>
+    </div>
+  );
+};
+
+const DeleteSelectedButton: React.FC<{ count: number; onClick: () => void }> = ({ count, onClick }) => {
+  const { touchProps } = useTouchFeedback({
+    activeClass: 'bg-red-700'
+  });
+
+  return (
+    <button
+      {...touchProps}
+      onClick={onClick}
+      className="inline-flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors w-full sm:w-auto"
+    >
+      <Trash2 className="w-4 h-4 mr-2" />
+      Delete Selected ({count})
+    </button>
+  );
+};
+
+const AddPatientButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
+  const { touchProps } = useTouchFeedback({
+    activeClass: 'bg-blue-700'
+  });
+
+  return (
+    <button
+      {...touchProps}
+      onClick={onClick}
+      className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors w-full sm:w-auto"
+    >
+      <Plus className="w-4 h-4 mr-2" />
+      Add Patient
+    </button>
+  );
+};
 
 const PatientList: React.FC = () => {
   const { user } = useAuth();
@@ -174,26 +254,18 @@ const PatientList: React.FC = () => {
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow transition-colors">
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Patients</h2>
-          <div className="flex space-x-2">
+      <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row gap-2">
             {selectedPatients.size > 0 && (
-              <button
-                onClick={handleDeleteSelected}
-                className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete Selected ({selectedPatients.size})
-              </button>
+              <DeleteSelectedButton 
+                count={selectedPatients.size} 
+                onClick={handleDeleteSelected} 
+              />
             )}
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Patient
-            </button>
+            <AddPatientButton 
+              onClick={() => setIsAddModalOpen(true)} 
+            />
           </div>
         </div>
         <div className="relative">
@@ -215,71 +287,81 @@ const PatientList: React.FC = () => {
             {searchTerm ? 'No patients found matching your search' : 'No patients added yet'}
           </div>
         ) : (
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th className="px-6 py-3 text-left">
-                  <input
-                    type="checkbox"
-                    checked={selectedPatients.size === filteredPatients.length}
-                    onChange={toggleAllPatients}
-                    className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-600 dark:checked:bg-blue-600"
-                  />
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Date Added
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Files
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredPatients.map((patient) => (
-                <tr
-                  key={patient.id}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
-                  onClick={() => setSelectedPatient(patient)}
-                >
-                  <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={selectedPatients.has(patient.id)}
-                      onChange={(e) => togglePatientSelection(patient.id, e)}
-                      className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-600 dark:checked:bg-blue-600"
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">{patient.name}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      {new Date(patient.createdAt).toLocaleDateString()}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      {fileCounts[patient.id] || 0} files
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={(e) => handleDeletePatient(patient.id, e)}
-                      className="text-red-600 hover:text-red-900 dark:text-red-500 dark:hover:text-red-400 transition-colors"
+          <div className="min-w-full">
+            <div className="hidden sm:block">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-6 py-3 text-left">
+                      <input
+                        type="checkbox"
+                        checked={selectedPatients.size === filteredPatients.length}
+                        onChange={toggleAllPatients}
+                        className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-600 dark:checked:bg-blue-600"
+                      />
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date Added</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Files</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {filteredPatients.map((patient) => (
+                    <tr
+                      key={patient.id}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                      onClick={() => setSelectedPatient(patient)}
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
+                      <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedPatients.has(patient.id)}
+                          onChange={(e) => togglePatientSelection(patient.id, e)}
+                          className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-600 dark:checked:bg-blue-600"
+                        />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">{patient.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {new Date(patient.createdAt).toLocaleDateString()}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {fileCounts[patient.id] || 0} files
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={(e) => handleDeletePatient(patient.id, e)}
+                          className="text-red-600 hover:text-red-900 dark:text-red-500 dark:hover:text-red-400 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="sm:hidden">
+              {filteredPatients.map((patient) => (
+                <PatientCard
+                  key={patient.id}
+                  patient={patient}
+                  isSelected={selectedPatients.has(patient.id)}
+                  onSelect={(e) => togglePatientSelection(patient.id, e)}
+                  onDelete={(e) => handleDeletePatient(patient.id, e)}
+                  onClick={() => setSelectedPatient(patient)}
+                  fileCount={fileCounts[patient.id] || 0}
+                />
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
         )}
       </div>
 
@@ -292,4 +374,19 @@ const PatientList: React.FC = () => {
   );
 };
 
-export default PatientList;
+const PatientListWrapper: React.FC = () => {
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+
+  if (selectedPatient) {
+    return (
+      <PatientDetails
+        patient={selectedPatient}
+        onBack={() => setSelectedPatient(null)}
+      />
+    );
+  }
+
+  return <PatientList onSelectPatient={setSelectedPatient} />;
+};
+
+export default PatientListWrapper;
