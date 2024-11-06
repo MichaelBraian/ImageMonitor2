@@ -70,9 +70,24 @@ async function generateThumbnail(file: File): Promise<Blob> {
 const generateFileName = (file: File, patientName: string, group: string): string => {
   const year = new Date().getFullYear();
   const originalExtension = file.name.split('.').pop() || '';
-  const sanitizedPatientName = patientName.replace(/[^a-zA-Z0-9]/g, '');
-  const sanitizedGroup = group.replace(/[^a-zA-Z0-9]/g, '');
-  const uniqueId = uuidv4().slice(0, 8); // Add a short unique ID to prevent naming conflicts
+  
+  // Properly sanitize the patient name and group
+  const sanitizedPatientName = patientName
+    .normalize('NFD')                     // Decompose characters (ö -> o + ¨)
+    .replace(/[\u0300-\u036f]/g, '')     // Remove diacritics
+    .replace(/[åäöÅÄÖ]/g, char => {      // Replace Nordic characters
+      const map: { [key: string]: string } = {
+        'å': 'a', 'ä': 'a', 'ö': 'o',
+        'Å': 'A', 'Ä': 'A', 'Ö': 'O'
+      };
+      return map[char] || char;
+    })
+    .replace(/[^a-zA-Z0-9]/g, '_');      // Replace other special chars with underscore
+  
+  const sanitizedGroup = group
+    .replace(/[^a-zA-Z0-9]/g, '_');
+  
+  const uniqueId = uuidv4().slice(0, 8);
   
   return `${sanitizedPatientName}_${sanitizedGroup}_${year}_${uniqueId}.${originalExtension}`;
 };
