@@ -1,7 +1,19 @@
 [
   {
-    "origin": ["*"],
-    "method": ["GET", "HEAD", "PUT", "POST", "DELETE", "OPTIONS"],
+    "origin": [
+      "http://localhost:5173",
+      "http://localhost:3000",
+      "https://sweacademy.se",
+      "https://www.sweacademy.se"
+    ],
+    "method": [
+      "GET",
+      "HEAD",
+      "PUT",
+      "POST",
+      "DELETE",
+      "OPTIONS"
+    ],
     "maxAgeSeconds": 3600,
     "responseHeader": [
       "Content-Type",
