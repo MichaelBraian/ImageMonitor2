@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { LucideIcon, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface MenuItem {
   icon: LucideIcon;
@@ -18,6 +19,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ menuItems, onMenuClick, currentView }) => {
   const { logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
@@ -27,9 +29,10 @@ const Sidebar: React.FC<SidebarProps> = ({ menuItems, onMenuClick, currentView }
     }
   };
 
-  const handleMenuClick = (id: string) => {
+  const handleMenuClick = (id: string, href: string) => {
+    navigate(href);
     onMenuClick(id);
-    setIsMobileMenuOpen(false); // Close mobile menu after selection
+    setIsMobileMenuOpen(false);
   };
 
   return (
@@ -69,7 +72,7 @@ const Sidebar: React.FC<SidebarProps> = ({ menuItems, onMenuClick, currentView }
             {menuItems.map((item) => (
               <li key={item.label}>
                 <button
-                  onClick={() => handleMenuClick(item.id)}
+                  onClick={() => handleMenuClick(item.id, item.href)}
                   className={`flex w-full items-center p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group transition-colors ${
                     currentView === item.id ? 'bg-gray-100 dark:bg-gray-700' : ''
                   }`}

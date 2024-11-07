@@ -8,6 +8,7 @@ import PatientDetails from './PatientDetails';
 import type { Patient } from '../types';
 import toast from 'react-hot-toast';
 import { useTouchFeedback } from '../hooks/useTouchFeedback';
+import { useNavigate } from 'react-router-dom';
 
 const PatientCard: React.FC<{
   patient: Patient;
@@ -97,6 +98,7 @@ const PatientList: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [selectedPatients, setSelectedPatients] = useState<Set<string>>(new Set());
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (user) {
@@ -243,6 +245,10 @@ const PatientList: React.FC = () => {
     patient.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handlePatientClick = (patient: Patient) => {
+    navigate(`/patients/${patient.id}`);
+  };
+
   if (selectedPatient) {
     return (
       <PatientDetails
@@ -311,7 +317,7 @@ const PatientList: React.FC = () => {
                     <tr
                       key={patient.id}
                       className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
-                      onClick={() => setSelectedPatient(patient)}
+                      onClick={() => handlePatientClick(patient)}
                     >
                       <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
                         <input
@@ -356,7 +362,7 @@ const PatientList: React.FC = () => {
                   isSelected={selectedPatients.has(patient.id)}
                   onSelect={(e) => togglePatientSelection(patient.id, e)}
                   onDelete={(e) => handleDeletePatient(patient.id, e)}
-                  onClick={() => setSelectedPatient(patient)}
+                  onClick={() => handlePatientClick(patient)}
                   fileCount={fileCounts[patient.id] || 0}
                 />
               ))}

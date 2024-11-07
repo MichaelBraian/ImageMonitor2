@@ -24,7 +24,8 @@ service firebase.storage {
 
     // Allow CORS preflight requests
     match /{allPaths=**} {
-      allow options: if request.headers.origin != null;
+      allow read: if request.auth != null;
+      allow options: if true;
     }
 
     // Match all files in patients folder and subfolders

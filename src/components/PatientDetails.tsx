@@ -13,6 +13,7 @@ import { ref, getDownloadURL } from 'firebase/storage';
 import { storage } from '../lib/firebase';
 import ThreeDThumbnail from './ThreeDThumbnail';
 import { useTouchFeedback } from '../hooks/useTouchFeedback';
+import { useNavigate, useParams } from 'react-router-dom';
 
 interface PatientDetailsProps {
   patient: Patient;
@@ -105,9 +106,11 @@ const FileCard: React.FC<FileCardProps> = ({ file, onClick, isSelected, onSelect
   );
 };
 
-const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
+const PatientDetails: React.FC = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
   const { uploadFile, getPatientFiles, updateFileGroup, deleteFile } = useFiles();
-  const { permissions, loading: accessLoading, verifyAccess } = useAccessControl(patient.id);
+  const { permissions, loading: accessLoading, verifyAccess } = useAccessControl(id);
   const [files, setFiles] = useState<DentalFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -125,15 +128,15 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
   const allowedFileTypes = '.jpg,.jpeg,.png,.stl,.ply';
 
   useEffect(() => {
-    if (patient.id && permissions.canRead) {
+    if (id && permissions.canRead) {
       loadFiles();
       loadCategories();
     }
-  }, [patient.id, permissions.canRead]);
+  }, [id, permissions.canRead]);
 
   const loadFiles = async () => {
     try {
-      const patientFiles = await getPatientFiles(patient.id);
+      const patientFiles = await getPatientFiles(id);
       setFiles(patientFiles.sort((a, b) => 
         new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
       ));
@@ -172,7 +175,7 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
         const fileExtension = file.name.split('.').pop()?.toLowerCase();
         const fileType = (fileExtension === 'stl' || fileExtension === 'ply') ? '3D' : '2D';
         const targetGroup = selectedGroup === 'All' ? 'Unsorted' : selectedGroup;
-        uploadPromises.push(uploadFile(file, patient.id, fileType, targetGroup));
+        uploadPromises.push(uploadFile(file, id, fileType, targetGroup));
       });
 
       const uploadedFiles = await Promise.all(uploadPromises);
@@ -264,7 +267,7 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
 
       await deleteFile(file.id, file.path);
 
-      await uploadFile(editedFile, patient.id, '2D', file.group);
+      await uploadFile(editedFile, id, '2D', file.group);
       
       await loadFiles();
       
@@ -311,6 +314,10 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
     setPullDistance(0);
   }, [pullDistance, isRefreshing, loadFiles, loadCategories]);
 
+  const handleBack = () => {
+    navigate('/patients');
+  };
+
   if (accessLoading || isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -330,7 +337,7 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
           You do not have permission to view this patient's records.
         </p>
         <button
-          onClick={onBack}
+          onClick={handleBack}
           className="mt-4 inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -376,7 +383,7 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
 
         <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-700">
           <button
-            onClick={onBack}
+            onClick={handleBack}
             className="flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 mb-4 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -384,7 +391,7 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ patient, onBack }) => {
           </button>
           
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-            <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{patient.name}'s Records</h2>
+            <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{id}'s Records</h2>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               {selectedFiles.size > 0 && (
                 <select
